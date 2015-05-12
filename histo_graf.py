@@ -6,7 +6,7 @@ Programa que realiza estadisticas basicas a partir de un select.out
 (c) 2014 Nelson Perez <nperez@sgc.gov.co>
 
 v0.1 - 20140312 - N. Perez
-
+20150512-- agragado a github
 """
 
 import sys
