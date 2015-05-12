@@ -6,7 +6,9 @@ Programa que realiza estadisticas basicas a partir de un select.out
 (c) 2014 Nelson Perez <nperez@sgc.gov.co>
 
 v0.1 - 20140312 - N. Perez
-20150512-- agragado a github
+v0.2 - 20140904 - V.Dionicio
+Histograma por dias de los eventos, lectura del select.inp para los limites de la grafica y el numero de bins
+
 """
 
 import sys
@@ -14,7 +16,12 @@ import datetime
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.dates import date2num, DateFormatter, YearLocator, MonthLocator, DayLocator, AutoDateLocator
+from matplotlib.dates import date2num, DateFormatter, YearLocator, MonthLocator, DayLocator, AutoDateLocator, num2date
+
+reportINP=open('report.inp','w')
+print >> reportINP, "Date TimeE L E LatE LonE Dep E F Aga Nsta Rms Gap McA MlA MbA MsA MwA Fp Spec"
+print >> reportINP, "X    X         X  X X  X X   X       X    X   X       X           X"
+reportINP.close()
 
 os.system('report select.out report.inp')
 
@@ -64,7 +71,7 @@ for i in range(len(ml)):
 """
 
 
-
+output=[]
 fig=plt.figure(1, figsize=(20,20))
 
 plt.subplot(321)
@@ -112,7 +119,9 @@ plt.ylabel('RMS')
 plt.ylim(-0.03,max(rms)+0.1)
 plt.xlim(0,max(ml)+0.1)
 #plt.show()
-fig.savefig('figura1.pdf',format='pdf')
+output.append('ErrorDepthVSMl.pdf')
+#fig.savefig('figura1.pdf',format='pdf')
+fig.savefig(output[0],format='pdf')
 
 """
 ##conteo histograma:
@@ -144,7 +153,9 @@ plt.subplot(223)
 hist_nsta=plt.hist(nsta,bins=np.arange(0,50,1))
 plt.xlabel('Numero de estaciones',fontsize=8)
 plt.ylabel('Numero de sismos',fontsize=8)
-plt.savefig('figura2.pdf')
+output.append('StationsVSEvents.pdf')
+plt.savefig(output[1])
+#plt.savefig('figura2.pdf')
 
 plt.figure(3)
 plt.subplot(221)
@@ -162,46 +173,91 @@ hist_errdep=plt.hist(err_dep,bins=np.arange(0,100,1))
 plt.xlabel('Error en profundidad (km)',fontsize=8)
 plt.ylabel('Numero de sismos',fontsize=8)
 #plt.show()
-plt.savefig('figura3.pdf')
+#plt.savefig('figura3.pdf')
+output.append('ErrorVSEvents.pdf')
+plt.savefig(output[2])
 
 plt.figure(4)
 plt.subplot(111)
 hist_errdep=plt.hist(dep,bins=np.arange(0,600,5))
 plt.xlabel('Profundidad (km)',fontsize=16)
 plt.ylabel('Numero de sismos',fontsize=16)
-plt.savefig('figura4.pdf')
+#plt.savefig('figura4.pdf')
+output.append('DepthVSEvents.pdf')
+plt.savefig(output[3])
 
 plt.figure(5)
 plt.subplot(111)
 hist_errdep=plt.hist(rms,bins=np.arange(0,2,0.1))
 plt.xlabel('RMS',fontsize=16)
 plt.ylabel('Numero de sismos',fontsize=16)
-plt.savefig('figura5.pdf')
-###HISTOGRAMA FECHAS
+#plt.savefig('figura5.pdf')
+output.append('RMSVSEvents.pdf')
+plt.savefig(output[4])
+
+
+
+###HISTOGRAMA POR DIAS
 
 #plt.figure(3, figsize(20,20))
 
 Dates = []
 
 for fec in range(len(year)):
-	Dates.append(str(year[fec])+'-'+str(MM[fec])+'-'+str(dd[fec])+'-'+str(hh[fec])+'-'+str(mm[fec]))
-	Dates[fec] = datetime.datetime.strptime(Dates[fec], '%Y-%m-%d-%H-%M')
-#	print fec, Dates[fec]
+	Dates.append(str(year[fec])+'-'+str(MM[fec])+'-'+str(dd[fec]))
+	Dates[fec] = datetime.datetime.strptime(Dates[fec], '%Y-%m-%d')
 
-(hist, bin_edges) = np.histogram(date2num(Dates), 608)
-print hist, bin_edges[:-1]
+#Reding from select.inp the start and end time and calculate the bins number
+selectINP=open('select.inp')
+for line in selectINP:
+  if 'Start' in line:
+	ini_year=line[32:36]
+	ini_month=line[36:38]
+	ini_day=line[38:40]
+	ini_hour=line[40:42]
+	StartTime=ini_year+'-'+ini_month+'-'+ini_day
+	numStartTime=date2num(datetime.datetime.strptime(StartTime, '%Y-%m-%d'))
+  if 'End' in line:
+	end_year=line[32:36]
+	end_month=line[36:38]
+	end_day=line[38:40]
+	end_hour=line[40:42]
+	EndTime=end_year+'-'+end_month+'-'+end_day
+	numEndTime=date2num(datetime.datetime.strptime(EndTime, '%Y-%m-%d'))
+  if 'Minimum latitude' in line:
+	minLat=line[39:45]
+  if 'Maximum latitude' in line:
+	maxLat=line[39:45]
+  if 'Minimum longitude' in line:
+	minLon=line[39:45]
+  if 'Maximum longitude' in line:
+	maxLon=line[39:45]
+print minLat, maxLat, minLon, maxLon
+nBins=numEndTime-numStartTime
+selectINP.close()
+
+(hist, bin_edges) = np.histogram(date2num(Dates), nBins)
 width = bin_edges[1] - bin_edges[0]
 fig = plt.figure(6)
 ax = fig.add_subplot(111)
 ax.bar(bin_edges[:-1], hist, width=width)
-ax.set_xlim(bin_edges[0], date2num(Dates[-1]))
+ax.set_xlim(numStartTime, numEndTime)
 ax.set_ylabel('Numero de eventos')
-ax.set_title('Ocurrencia de Eventos')
+ax.set_xlabel('Intervalo de Tiempo '+StartTime+' y '+EndTime)
+#ax.set_title('Ocurrencia de eventos diarios entre '+StartTime+' y '+EndTime+'\n Entre las coordenadas '+ minLon+'<Lon<'+maxLon+' y '+ minLat+'<Lat<'+maxLat+'  \n Numero total de eventos '+str(len(Dates)))
+ax.set_title('Eventos diarios entre '+ minLon+'<Lon<'+maxLon+' y '+ minLat+'<Lat<'+maxLat+'  \n Numero total de eventos '+str(len(Dates)))
 ax.xaxis.set_major_locator(AutoDateLocator())
 ax.xaxis.set_major_formatter(DateFormatter('%Y/%m/%d'))
 ax.xaxis.set_minor_locator(MonthLocator())
 ax.format_xdata = DateFormatter('%Y-%m-%d')
 ax.grid(True)
 fig.autofmt_xdate()
-plt.savefig('figura6.pdf')
+#plt.savefig('figura6.pdf')
+output.append('FrequencyVSEvents.pdf')
+plt.savefig(output[5])
 plt.show()
+
+print 'Output: ', output
+
+#for i in range(1,7):
+#	print 'Output: figura'+str(i)+'.pdf'
